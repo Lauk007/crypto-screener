@@ -188,13 +188,9 @@ LIGHT_THEME_CSS = """
         .stat-card { padding: 0.75rem; }
         .stat-card .value { font-size: 1.1rem; }
         .stDataFrame tbody td { font-size: 0.75rem; padding: 0.4rem !important; }
-        section[data-testid="stSidebar"] {
-            width: 100% !important;
-        }
     }
 
     /* 隐藏右上角菜单 */
-    header[data-testid="stHeader"] { display: none !important; }
     #MainMenu { visibility: hidden; }
     footer { visibility: hidden; }
 </style>
