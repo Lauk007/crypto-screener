@@ -45,32 +45,6 @@ LIGHT_THEME_CSS = """
         color: #1e293b !important;
     }
 
-    /* 统计卡片 */
-    .stat-card {
-        background: #ffffff;
-        border-radius: 10px;
-        padding: 1rem;
-        border: 1px solid #e2e8f0;
-        text-align: center;
-    }
-
-    .stat-card .label {
-        color: #94a3b8;
-        font-size: 0.7rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 0.25rem;
-    }
-
-    .stat-card .value {
-        color: #1e293b;
-        font-size: 1.25rem;
-        font-weight: 700;
-    }
-
-    .stat-card .value.green { color: #10b981; }
-    .stat-card .value.red { color: #ef4444; }
-
     /* 表格 */
     .stDataFrame {
         background: #ffffff;
@@ -185,8 +159,6 @@ LIGHT_THEME_CSS = """
 
     /* 手机端自适应 */
     @media (max-width: 768px) {
-        .stat-card { padding: 0.75rem; }
-        .stat-card .value { font-size: 1.1rem; }
         .stDataFrame tbody td { font-size: 0.75rem; padding: 0.4rem !important; }
     }
 
@@ -258,16 +230,13 @@ def tokens_to_dataframe(tokens: list) -> pd.DataFrame:
     data = []
     for token in tokens:
         t = token if isinstance(token, dict) else token
-        chg = t.get("chg_24h") or t.get("chg") or 0
         top10 = t.get("top10_holders_pct")
         price = t.get("price") or 0
 
         data.append({
             "代币": t.get("symbol", "-"),
             "价格": f"${price:.6f}" if price < 1 else f"${price:.4f}",
-            "24h": f"+{chg:.1f}%" if chg > 0 else f"{chg:.1f}%",
             "市值": format_number(t.get("market_cap")),
-            "DEX量": format_number(t.get("volume")),
             "前十": f"{top10:.1f}%" if top10 is not None else "-",
             "币安量": format_number(t.get("binance_volume_24h")),
         })
@@ -319,25 +288,7 @@ def main():
         st.divider()
         filter_btn = st.button("🔍 开始筛选", type="primary", use_container_width=True)
 
-    # 统计卡片
-    c1, c2, c3, c4 = st.columns(4)
     results = st.session_state.results
-
-    with c1:
-        st.markdown(f'<div class="stat-card"><div class="label">结果</div><div class="value">{len(results)}</div></div>', unsafe_allow_html=True)
-    with c2:
-        vol = sum(t.get("binance_volume_24h", 0) or 0 for t in results) if results else 0
-        st.markdown(f'<div class="stat-card"><div class="label">总币安量</div><div class="value">{format_number(vol)}</div></div>', unsafe_allow_html=True)
-    with c3:
-        if results:
-            avg = sum(t.get("chg_24h", 0) or t.get("chg", 0) or 0 for t in results) / len(results)
-            color = "green" if avg >= 0 else "red"
-            st.markdown(f'<div class="stat-card"><div class="label">平均涨跌</div><div class="value {color}">{"+" if avg >= 0 else ""}{avg:.1f}%</div></div>', unsafe_allow_html=True)
-        else:
-            st.markdown('<div class="stat-card"><div class="label">平均涨跌</div><div class="value">-</div></div>', unsafe_allow_html=True)
-    with c4:
-        t = st.session_state.last_update.strftime("%H:%M") if st.session_state.last_update else "-"
-        st.markdown(f'<div class="stat-card"><div class="label">更新</div><div class="value">{t}</div></div>', unsafe_allow_html=True)
 
     # 筛选逻辑
     if filter_btn:
