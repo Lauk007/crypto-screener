@@ -5,7 +5,7 @@
 1. 从币安（现货+期货）获取所有 USDT 交易对
 2. 筛选币安 24h 成交量 >= 阈值的代币
 3. 获取这些代币的市值数据（通过 DEXScreener）
-4. 获取 BSC 代币的前十持有者集中度（通过 TokenPocket）
+4. 获取 BSC 代币的前二十持有者集中度（通过 TokenPocket）
 5. 应用最终筛选条件
 """
 
@@ -27,7 +27,7 @@ class FilterCriteria:
     """筛选条件"""
     min_market_cap: float = 0
     max_market_cap: float = float("inf")
-    min_top10_holders_pct: Optional[float] = None
+    min_top20_holders_pct: Optional[float] = None
     min_binance_volume: Optional[float] = None
     check_binance: bool = False
 
@@ -38,7 +38,7 @@ class TokenScreener:
     def __init__(self, db_manager: Optional[DatabaseManager] = None):
         self.db = db_manager or DatabaseManager()
 
-    def fetch_and_filter(self, criteria: FilterCriteria, fetch_top10_holders: bool = True) -> List[Dict[str, Any]]:
+    def fetch_and_filter(self, criteria: FilterCriteria, fetch_top20_holders: bool = True) -> List[Dict[str, Any]]:
         """获取代币数据并根据条件筛选"""
         logger.info("开始获取代币数据（币安优先策略）...")
 
@@ -76,9 +76,9 @@ class TokenScreener:
         # 3. 获取市值数据
         enriched_tokens = self._enrich_with_market_data(binance_tokens)
 
-        # 4. 获取前十持有者数据
-        if fetch_top10_holders and criteria.min_top10_holders_pct is not None:
-            enriched_tokens = self._enrich_with_top10_holders(enriched_tokens)
+        # 4. 获取前二十持有者数据
+        if fetch_top20_holders and criteria.min_top20_holders_pct is not None:
+            enriched_tokens = self._enrich_with_top20_holders(enriched_tokens)
 
         # 5. 应用筛选条件
         filtered = self._apply_filters(enriched_tokens, criteria)
@@ -143,33 +143,33 @@ class TokenScreener:
         token["price"] = token.get("binance_price")
         return token
 
-    def _enrich_with_top10_holders(self, tokens: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """为代币添加前十持有者占比数据"""
+    def _enrich_with_top20_holders(self, tokens: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """为代币添加前二十持有者占比数据"""
         enriched = []
 
         bsc_tokens = [t for t in tokens if t.get("chain", "").lower() in ["bsc", "bnbchain"]]
         other_tokens = [t for t in tokens if t.get("chain", "").lower() not in ["bsc", "bnbchain"]]
 
-        logger.info(f"正在获取 {len(bsc_tokens)} 个 BSC 代币的前十持有者数据...")
+        logger.info(f"正在获取 {len(bsc_tokens)} 个 BSC 代币的前二十持有者数据...")
 
         for token in other_tokens:
-            token["top10_holders_pct"] = None
+            token["top20_holders_pct"] = None
 
         with ThreadPoolExecutor(max_workers=5) as executor:
-            futures = {executor.submit(self._get_top10_for_token, token): token for token in bsc_tokens}
+            futures = {executor.submit(self._get_top20_for_token, token): token for token in bsc_tokens}
             for future in as_completed(futures):
                 token = futures[future]
                 try:
-                    token["top10_holders_pct"] = future.result()
+                    token["top20_holders_pct"] = future.result()
                 except Exception:
-                    token["top10_holders_pct"] = None
+                    token["top20_holders_pct"] = None
                 enriched.append(token)
 
         enriched.extend(other_tokens)
         return enriched
 
-    def _get_top10_for_token(self, token: Dict[str, Any]) -> Optional[float]:
-        """获取单个代币的前十持有者占比"""
+    def _get_top20_for_token(self, token: Dict[str, Any]) -> Optional[float]:
+        """获取单个代币的前二十持有者占比"""
         address = token.get("address", "")
         symbol = token.get("symbol", "")
 
@@ -177,7 +177,7 @@ class TokenScreener:
             return None
 
         try:
-            return tp_api.get_top10_holders_pct(address, symbol)
+            return tp_api.get_top20_holders_pct(address, symbol)
         except Exception:
             return None
 
@@ -192,9 +192,9 @@ class TokenScreener:
             if market_cap < criteria.min_market_cap or market_cap > criteria.max_market_cap:
                 continue
 
-            if criteria.min_top10_holders_pct is not None:
-                top10_pct = token.get("top10_holders_pct")
-                if top10_pct is None or top10_pct < criteria.min_top10_holders_pct:
+            if criteria.min_top20_holders_pct is not None:
+                top20_pct = token.get("top20_holders_pct")
+                if top20_pct is None or top20_pct < criteria.min_top20_holders_pct:
                     continue
 
             filtered.append(token)
@@ -226,7 +226,7 @@ class TokenScreener:
 def create_filter_criteria(
     min_market_cap: float = None,
     max_market_cap: float = None,
-    min_top10_holders_pct: float = None,
+    min_top20_holders_pct: float = None,
     min_binance_volume: float = None,
     check_binance: bool = False,
 ) -> FilterCriteria:
@@ -234,7 +234,7 @@ def create_filter_criteria(
     return FilterCriteria(
         min_market_cap=min_market_cap if min_market_cap is not None else 0,
         max_market_cap=max_market_cap if max_market_cap is not None else float("inf"),
-        min_top10_holders_pct=min_top10_holders_pct,
+        min_top20_holders_pct=min_top20_holders_pct,
         min_binance_volume=min_binance_volume,
         check_binance=check_binance,
     )

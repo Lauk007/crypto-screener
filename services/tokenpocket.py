@@ -48,30 +48,36 @@ class TokenPocketAPI:
         )
         return data.get("data", {})
 
-    def get_top10_holders_pct(self, address: str, symbol: str, chain_id: int = 56, blockchain_id: int = 12) -> Optional[float]:
-        """获取前十持有者占比"""
+    def get_top20_holders_pct(self, address: str, symbol: str, chain_id: int = 56, blockchain_id: int = 12) -> Optional[float]:
+        """获取前二十持有者占比"""
         try:
             holder_info = self.get_holder_info(address, symbol, chain_id, blockchain_id)
             if not holder_info:
                 return None
 
-            top_1_10 = holder_info.get("top_1_10")
+            # API 返回 top_1_10, top_1_20, top_1_50 等字段
+            top_1_20 = holder_info.get("top_1_20") or holder_info.get("top_1_10")
             total_supply = holder_info.get("total_supply")
 
-            if not top_1_10 or not total_supply:
+            if not top_1_20 or not total_supply:
                 return None
 
-            top_1_10 = float(top_1_10)
+            top_1_20 = float(top_1_20)
             total_supply = float(total_supply)
 
             if total_supply == 0:
                 return None
 
-            pct = (top_1_10 / total_supply) * 100
+            pct = (top_1_20 / total_supply) * 100
             return round(pct, 2)
 
         except Exception:
             return None
+
+    # 兼容旧代码
+    def get_top10_holders_pct(self, address: str, symbol: str, chain_id: int = 56, blockchain_id: int = 12) -> Optional[float]:
+        """获取前十持有者占比（兼容旧接口）"""
+        return self.get_top20_holders_pct(address, symbol, chain_id, blockchain_id)
 
 
 tp_api = TokenPocketAPI()

@@ -230,14 +230,14 @@ def tokens_to_dataframe(tokens: list) -> pd.DataFrame:
     data = []
     for token in tokens:
         t = token if isinstance(token, dict) else token
-        top10 = t.get("top10_holders_pct")
+        top20 = t.get("top20_holders_pct")
         price = t.get("price") or 0
 
         data.append({
             "代币": t.get("symbol", "-"),
             "价格": f"${price:.6f}" if price < 1 else f"${price:.4f}",
             "市值": format_number(t.get("market_cap")),
-            "前十": f"{top10:.1f}%" if top10 is not None else "-",
+            "前二十": f"{top20:.1f}%" if top20 is not None else "-",
             "币安量": format_number(t.get("binance_volume_24h")),
         })
 
@@ -269,8 +269,8 @@ def main():
 
         st.divider()
 
-        # 前十持仓
-        min_top10 = st.slider("前十持仓%", 0, 100, 95, key="top10_slider")
+        # 前二十持仓
+        min_top20 = st.slider("前二十持仓%", 0, 100, 98, key="top20_slider")
 
         st.divider()
 
@@ -297,11 +297,11 @@ def main():
                 criteria = create_filter_criteria(
                     min_market_cap=min_cap,
                     max_market_cap=max_cap,
-                    min_top10_holders_pct=min_top10,
+                    min_top20_holders_pct=min_top20,
                     min_binance_volume=min_binance,
                     check_binance=True,
                 )
-                results = get_screener().fetch_and_filter(criteria, fetch_top10_holders=True)
+                results = get_screener().fetch_and_filter(criteria, fetch_top20_holders=True)
                 st.session_state.results = results
                 st.session_state.last_update = datetime.now()
                 # 保存到数据库缓存
